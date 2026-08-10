@@ -1,26 +1,176 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ------------------------------------------------------------------ */
+/* Wanderly design tokens                                              */
+/* ------------------------------------------------------------------ */
+
+@theme {
+  /* Brand — an original teal palette, deliberately distinct from any
+     existing travel marketplace. Used for the logo, primary CTAs and
+     active states only; everything else stays neutral. */
+  --color-brand-50: #eefaf8;
+  --color-brand-100: #d3f2ee;
+  --color-brand-200: #a8e5de;
+  --color-brand-300: #71d1c7;
+  --color-brand-400: #3bb5aa;
+  --color-brand-500: #17998e;
+  --color-brand-600: #0f857a;
+  --color-brand-700: #0d6b63;
+  --color-brand-800: #0e564f;
+  --color-brand-900: #0d4742;
+
+  /* Neutrals tuned for a bright, spacious marketplace UI */
+  --color-ink: #17181a;
+  --color-muted: #6a6c70;
+  --color-subtle: #8f9195;
+  --color-line: #e3e4e6;
+  --color-line-strong: #c9cbcd;
+  --color-surface: #f7f7f8;
+
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --radius-card: 0.75rem;
+
+  --shadow-pill: 0 1px 2px rgb(0 0 0 / 0.08), 0 4px 12px rgb(0 0 0 / 0.08);
+  --shadow-pop: 0 2px 8px rgb(0 0 0 / 0.09), 0 8px 28px rgb(0 0 0 / 0.14);
+
+  --animate-fade-in: fade-in 0.16s ease-out;
+  --animate-pop-in: pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-sheet-up: sheet-up 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-heart: heart-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes heart-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.28);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Base                                                                */
+/* ------------------------------------------------------------------ */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: #ffffff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* Prevents the horizontal card rails from widening the page. */
+    overflow-x: hidden;
+  }
+
+  /* A single, consistent focus ring across the whole product. */
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Utilities                                                           */
+/* ------------------------------------------------------------------ */
+
+@utility scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Page gutter used by every section so rails line up down the page. */
+@utility page-gutter {
+  padding-inline: 1.5rem;
+  @media (width >= 48rem) {
+    padding-inline: 2.5rem;
+  }
+  @media (width >= 80rem) {
+    padding-inline: 5rem;
+  }
+}
+
+/**
+ * Gutter for horizontal card rails. Matches `page-gutter`, and also sets
+ * scroll-padding so scroll-snap aligns cards to the gutter instead of to the
+ * scrollport edge (without it the rail starts scrolled by one gutter width).
+ */
+@utility rail-gutter {
+  padding-inline: 1.5rem;
+  scroll-padding-inline: 1.5rem;
+  @media (width >= 48rem) {
+    padding-inline: 2.5rem;
+    scroll-padding-inline: 2.5rem;
+  }
+  @media (width >= 80rem) {
+    padding-inline: 5rem;
+    scroll-padding-inline: 5rem;
+  }
+}
+
+@utility line-clamp-fix {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

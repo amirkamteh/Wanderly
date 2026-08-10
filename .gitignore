@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local Claude Code permission grants (machine-specific)
+.claude/settings.local.json
+
+# Visual reference captures of a third-party site — kept local, not published
+/reference/

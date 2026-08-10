@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Wanderly
 
-## Getting Started
+An original travel marketplace front end — homes, experiences and services —
+built with Next.js (App Router), TypeScript, Tailwind CSS v4 and Lucide icons.
 
-First, run the development server:
+The UX patterns (header, search pill, card rails, filters, detail pages) are
+modelled on the layout language of modern travel marketplaces. All branding,
+copy, data and components are original to this project. No third-party
+trademarks, logos or proprietary assets are used.
+
+## Getting started
+
+```bash
+npm install
+```
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Other scripts:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+```
 
-## Learn More
+```bash
+npm run lint
+```
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npx tsc --noEmit
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project layout
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+app/            routes (App Router), error/loading/not-found boundaries
+components/     all UI, one component per file
+data/           listings, destinations, categories, footer, image registry
+lib/            formatters, search/filter engine, hooks, wishlist store
+types/          domain types (listing, experience, service, user)
+reference/      the source screenshots used as the visual reference
+```
 
-## Deploy on Vercel
+## Notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Images** are Unsplash URLs resolved through `data/images.ts`. Swapping the
+  image source is a one-file change. Failed loads fall back to a neutral tile.
+- **Wishlist** is a `localStorage`-backed external store
+  (`lib/wishlist.tsx`), read via `useSyncExternalStore` so SSR and hydration
+  agree. It syncs across tabs.
+- **Search and filters** are pure functions in `lib/search.ts`, driven entirely
+  by the URL query string, so results are shareable and back/forward works.
+- **No backend.** Auth forms validate on the client and say so; Reserve shows a
+  full price breakdown but takes no payment.
