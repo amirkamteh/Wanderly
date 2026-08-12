@@ -15,9 +15,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy to Hostinger VPS
-        uses: hostinger/deploy-action@v1
+        uses: appleboy/ssh-action@v1.2.2
         with:
-          api-key: ${{ secrets.WANDERLY_GITHUB_DEPLOYMENT }}
-          virtual-machine: ${{ vars.HOSTINGER_VM_ID }}
-          project-name: wanderly
-          docker-compose-path: docker-compose.yml
+          host: ${{ secrets.WANDERLY_SSH_HOST }}
+          username: ${{ secrets.WANDERLY_SSH_USERNAME }}
+          key: ${{ secrets.WANDERLY_SSH_KEY }}
+          script: |
+            cd /opt/Wanderly
+            git pull origin main
+            docker compose up -d --build
