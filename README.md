@@ -34,6 +34,44 @@ npm run lint
 npx tsc --noEmit
 ```
 
+## Supabase
+
+The catalogue lives in Postgres; pages read it on every request, so edits in
+the database show up on reload with no rebuild.
+
+Copy `.env.example` to `.env` and fill in your project's URL and publishable
+key, then:
+
+```bash
+npm run db:seed
+```
+
+```bash
+npm run db:check
+```
+
+`db:seed` pushes `data/*.ts` into Postgres (idempotent — every write is an
+upsert). `db:check` verifies row level security from the outside using the same
+key the browser gets.
+
+### Access model
+
+There is **no authentication**. Every visitor is the `anon` role, and RLS is
+what keeps that safe:
+
+| Table | `anon` may |
+| --- | --- |
+| `hosts`, `homes`, `experiences`, `services`, `reviews` | `SELECT` only |
+| `booking_requests` | `INSERT` only |
+
+`booking_requests` deliberately has **no** select policy. Without a login there
+is no way to prove a row belongs to you, so allowing reads would expose every
+visitor's name, email and travel dates to every other visitor. Submissions are
+write-only from the app and readable only with a privileged key.
+
+Seeding needs write access the app does not have, so it runs behind a
+temporary policy that is dropped again immediately afterwards.
+
 ## Project layout
 
 ```

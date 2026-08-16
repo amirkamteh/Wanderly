@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   PRICE_MAX,
   PRICE_MIN,
@@ -20,7 +20,7 @@ interface FilterModalProps {
   filters: Filters;
   onApply: (filters: Filters) => void;
   /** Result count for the apply button, recalculated as the draft changes. */
-  countFor: (filters: Filters) => number;
+  countFor: (filters: Filters, signal: AbortSignal) => Promise<number>;
 }
 
 /**
@@ -52,7 +52,7 @@ export default function FilterModal({
         : [...current[key], id],
     }));
 
-  const count = countFor(draft);
+  const count = useDraftCount(draft, countFor);
 
   return (
     <div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true" aria-label="Filters">
@@ -214,12 +214,45 @@ export default function FilterModal({
             }}
             className="rounded-full bg-ink px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90"
           >
-            Show {count} {count === 1 ? "place" : "places"}
+            {count === null ? "Show results" : `Show ${count} ${count === 1 ? "place" : "places"}`}
           </button>
         </footer>
       </div>
     </div>
   );
+}
+
+/**
+ * Debounced result count for the current draft. Returns `null` until the
+ * first response lands, so the button never shows a stale or invented number.
+ * Each keystroke aborts the previous request.
+ */
+function useDraftCount(
+  draft: Filters,
+  countFor: (filters: Filters, signal: AbortSignal) => Promise<number>,
+) {
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      countFor(draft, controller.signal)
+        .then(setCount)
+        .catch((error: unknown) => {
+          // An aborted request is the expected path while typing.
+          if (!(error instanceof DOMException && error.name === "AbortError")) {
+            setCount(null);
+          }
+        });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [draft, countFor]);
+
+  return count;
 }
 
 function Group({

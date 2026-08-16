@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import InspirationSection from "@/components/InspirationSection";
 import ListingRow from "@/components/ListingRow";
-import { homesInCity, homesWithTag } from "@/data/homes";
+import { getHomesInCity, getHomesWithTag } from "@/lib/queries";
 
 export const metadata: Metadata = {
   title: "Homes",
@@ -22,7 +22,12 @@ const CITY_RAILS: Array<{ city: string; title: string }> = [
   { city: "Baku", title: "Check out homes in Baku" },
 ];
 
-export default function HomesPage() {
+export default async function HomesPage() {
+  const [cityRails, hotels] = await Promise.all([
+    Promise.all(CITY_RAILS.map((rail) => getHomesInCity(rail.city))),
+    getHomesWithTag("hotel"),
+  ]);
+
   return (
     <div className="space-y-10 py-6 sm:py-8">
       <h1 className="sr-only">Homes on Wanderly</h1>
@@ -33,7 +38,7 @@ export default function HomesPage() {
           kind="homes"
           title={rail.title}
           href={`/search?tab=homes&where=${encodeURIComponent(rail.city)}`}
-          items={homesInCity(rail.city)}
+          items={cityRails[index]}
           priority={index === 0}
         />
       ))}
@@ -43,7 +48,7 @@ export default function HomesPage() {
         title="Great hotels for your next trip"
         href="/search?tab=homes&place=room"
         subtitle="Plus, earn travel credit when you stay at a featured hotel."
-        items={homesWithTag("hotel")}
+        items={hotels}
       />
 
       <InspirationSection />

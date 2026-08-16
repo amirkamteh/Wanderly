@@ -8,18 +8,15 @@ import ImageGallery from "@/components/ImageGallery";
 import ListingRow from "@/components/ListingRow";
 import Rating from "@/components/Rating";
 import ReviewList from "@/components/ReviewList";
-import { getServiceById, serviceCategories, services } from "@/data/services";
+import { serviceCategories } from "@/data/services";
+import { getRelatedServices, getServiceById } from "@/lib/queries";
 import { formatMinutes, formatPrice } from "@/lib/formatters";
-
-export function generateStaticParams() {
-  return services.map((service) => ({ id: service.id }));
-}
 
 export async function generateMetadata(
   props: PageProps<"/services/[id]">,
 ): Promise<Metadata> {
   const { id } = await props.params;
-  const service = getServiceById(id);
+  const service = await getServiceById(id);
   if (!service) return { title: "Service not found" };
 
   const description = `${service.title} by ${service.provider} in ${service.city}. ${formatMinutes(service.durationMinutes)}, from ${formatPrice(service.price)} per ${service.priceUnit}.`;
@@ -39,7 +36,7 @@ export async function generateMetadata(
 
 export default async function ServiceDetailPage(props: PageProps<"/services/[id]">) {
   const { id } = await props.params;
-  const service = getServiceById(id);
+  const service = await getServiceById(id);
   if (!service) notFound();
 
   const categoryLabel =
@@ -52,13 +49,7 @@ export default async function ServiceDetailPage(props: PageProps<"/services/[id]
     { icon: ShieldCheck, label: "Category", value: categoryLabel },
   ];
 
-  const similar = services
-    .filter(
-      (other) =>
-        other.id !== service.id &&
-        (other.city === service.city || other.category === service.category),
-    )
-    .slice(0, 8);
+  const similar = await getRelatedServices(service);
 
   return (
     <article className="pb-12">
@@ -145,6 +136,8 @@ export default async function ServiceDetailPage(props: PageProps<"/services/[id]
 
           <aside className="lg:sticky lg:top-28 lg:h-fit">
             <BookingCard
+              listingId={service.id}
+              listingKind="service"
               mode="flat"
               price={service.price}
               unitLabel={`per ${service.priceUnit}`}

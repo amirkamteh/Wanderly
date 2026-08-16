@@ -8,19 +8,15 @@ import ImageGallery from "@/components/ImageGallery";
 import ListingRow from "@/components/ListingRow";
 import Rating from "@/components/Rating";
 import ReviewList from "@/components/ReviewList";
-import { experiences, getExperienceById } from "@/data/experiences";
+import { getExperienceById, getExperiencesInCity } from "@/lib/queries";
 import { formatDuration, formatPrice } from "@/lib/formatters";
 import { pluralize } from "@/lib/utils";
-
-export function generateStaticParams() {
-  return experiences.map((experience) => ({ id: experience.id }));
-}
 
 export async function generateMetadata(
   props: PageProps<"/experiences/[id]">,
 ): Promise<Metadata> {
   const { id } = await props.params;
-  const experience = getExperienceById(id);
+  const experience = await getExperienceById(id);
   if (!experience) return { title: "Experience not found" };
 
   const description = `${experience.title} in ${experience.city}. ${formatDuration(experience.durationHours)}, up to ${experience.groupSize} guests, from ${formatPrice(experience.price)} per ${experience.priceUnit}.`;
@@ -44,7 +40,7 @@ export default async function ExperienceDetailPage(
   props: PageProps<"/experiences/[id]">,
 ) {
   const { id } = await props.params;
-  const experience = getExperienceById(id);
+  const experience = await getExperienceById(id);
   if (!experience) notFound();
 
   const facts = [
@@ -54,9 +50,9 @@ export default async function ExperienceDetailPage(
     { icon: MapPin, label: "Location", value: `${experience.city}, ${experience.country}` },
   ];
 
-  const similar = experiences
-    .filter((other) => other.city === experience.city && other.id !== experience.id)
-    .slice(0, 8);
+  const similar = (await getExperiencesInCity(experience.city, 9)).filter(
+    (other) => other.id !== experience.id,
+  );
 
   return (
     <article className="pb-12">
@@ -160,6 +156,8 @@ export default async function ExperienceDetailPage(
 
           <aside className="lg:sticky lg:top-28 lg:h-fit">
             <BookingCard
+              listingId={experience.id}
+              listingKind="experience"
               mode="flat"
               price={experience.price}
               unitLabel={`per ${experience.priceUnit}`}

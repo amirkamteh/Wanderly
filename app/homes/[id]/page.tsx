@@ -9,21 +9,16 @@ import ListingRow from "@/components/ListingRow";
 import LocationSection from "@/components/LocationSection";
 import Rating from "@/components/Rating";
 import ReviewList from "@/components/ReviewList";
-import { getHomeById, homes } from "@/data/homes";
+import { getHomeById, getHomesInCity } from "@/lib/queries";
 import { amenityIcons } from "@/lib/amenities";
 import { formatPrice } from "@/lib/formatters";
 import { pluralize } from "@/lib/utils";
-
-/** Pre-render every stay at build time — the catalogue is fully static. */
-export function generateStaticParams() {
-  return homes.map((home) => ({ id: home.id }));
-}
 
 export async function generateMetadata(
   props: PageProps<"/homes/[id]">,
 ): Promise<Metadata> {
   const { id } = await props.params;
-  const home = getHomeById(id);
+  const home = await getHomeById(id);
   if (!home) return { title: "Home not found" };
 
   const description = `${home.name} in ${home.area}, ${home.city}. Sleeps ${home.guests} across ${pluralize(home.bedrooms, "bedroom")}. ${formatPrice(home.price)} per night, rated ${home.rating} from ${home.reviewCount} reviews.`;
@@ -43,7 +38,7 @@ export async function generateMetadata(
 
 export default async function HomeDetailPage(props: PageProps<"/homes/[id]">) {
   const { id } = await props.params;
-  const home = getHomeById(id);
+  const home = await getHomeById(id);
   if (!home) notFound();
 
   const placeLabel =
@@ -53,9 +48,9 @@ export default async function HomeDetailPage(props: PageProps<"/homes/[id]">) {
         ? "Room"
         : "Shared room";
 
-  const similar = homes
-    .filter((other) => other.city === home.city && other.id !== home.id)
-    .slice(0, 8);
+  const similar = (await getHomesInCity(home.city, 9)).filter(
+    (other) => other.id !== home.id,
+  );
 
   return (
     <article className="pb-12">
@@ -179,6 +174,8 @@ export default async function HomeDetailPage(props: PageProps<"/homes/[id]">) {
 
           <aside className="lg:sticky lg:top-28 lg:h-fit">
             <BookingCard
+              listingId={home.id}
+              listingKind="home"
               mode="stay"
               price={home.price}
               rating={home.rating}

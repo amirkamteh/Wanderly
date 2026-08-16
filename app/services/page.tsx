@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import CategoryNavigation from "@/components/CategoryNavigation";
 import InspirationSection from "@/components/InspirationSection";
 import ListingRow from "@/components/ListingRow";
+import { serviceCategories } from "@/data/services";
 import {
-  serviceCategories,
-  services,
-  servicesInCategory,
-  servicesInCity,
-} from "@/data/services";
+  getServicesInCategory,
+  getServicesInCity,
+  getServicesOutsideCity,
+} from "@/lib/queries";
 import type { ServiceCategorySlug } from "@/types/service";
 
 export const metadata: Metadata = {
@@ -25,20 +25,21 @@ function isCategory(value: string | undefined): value is ServiceCategorySlug {
 
 export default async function ServicesPage(props: PageProps<"/services">) {
   const params = await props.searchParams;
-  const raw = params.category;
-  const selected = isCategory(typeof raw === "string" ? raw : undefined)
-    ? (raw as ServiceCategorySlug)
-    : undefined;
+  const raw = typeof params.category === "string" ? params.category : undefined;
+  const selected = isCategory(raw) ? raw : undefined;
 
   // When a category is chosen, lead with it; otherwise lead with photography.
-  const leadCategory = selected ?? "photography";
+  const leadCategory: ServiceCategorySlug = selected ?? "photography";
   const leadLabel =
-    serviceCategories.find((category) => category.slug === leadCategory)?.label ?? "Photography";
+    serviceCategories.find((category) => category.slug === leadCategory)?.label ??
+    "Photography";
 
-  const dubaiRest = servicesInCity("Dubai").filter(
-    (service) => service.category !== leadCategory,
-  );
-  const discover = services.filter((service) => service.city !== "Dubai");
+  const [lead, dubaiRest, discover, cityRails] = await Promise.all([
+    getServicesInCategory(leadCategory),
+    getServicesInCity("Dubai", { excludeCategory: leadCategory }),
+    getServicesOutsideCity("Dubai"),
+    Promise.all(CITY_RAILS.map((city) => getServicesInCity(city))),
+  ]);
 
   return (
     <div className="space-y-10 py-6 sm:py-8">
@@ -50,7 +51,7 @@ export default async function ServicesPage(props: PageProps<"/services">) {
         kind="services"
         title={leadLabel}
         href={`/search?tab=services&service=${leadLabel}`}
-        items={servicesInCategory(leadCategory)}
+        items={lead}
         priority
       />
 
@@ -68,13 +69,13 @@ export default async function ServicesPage(props: PageProps<"/services">) {
         items={discover}
       />
 
-      {CITY_RAILS.map((city) => (
+      {CITY_RAILS.map((city, index) => (
         <ListingRow
           key={city}
           kind="services"
           title={`Services in ${city}`}
           href={`/search?tab=services&where=${encodeURIComponent(city)}`}
-          items={servicesInCity(city)}
+          items={cityRails[index]}
         />
       ))}
 

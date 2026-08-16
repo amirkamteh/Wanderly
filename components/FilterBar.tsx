@@ -10,7 +10,8 @@ import FilterModal from "./FilterModal";
 interface FilterBarProps {
   filters: Filters;
   onChange: (filters: Filters) => void;
-  countFor: (filters: Filters) => number;
+  /** Resolves the result count for a draft, server-side. */
+  countFor: (filters: Filters, signal: AbortSignal) => Promise<number>;
   /** Hides stay-only chips on the experiences and services tabs. */
   showPlaceTypes?: boolean;
 }

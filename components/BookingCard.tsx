@@ -1,17 +1,24 @@
 "use client";
 
-import { Check, ChevronDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Check, ChevronDown, TriangleAlert } from "lucide-react";
+import { useActionState, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
+import { submitBookingRequest } from "@/app/actions/booking";
+import { initialBookingState } from "@/lib/bookingState";
 import { formatDateRange, formatGuests, formatPrice, nightsBetween } from "@/lib/formatters";
 import { useDismiss } from "@/lib/hooks";
 import { emptyDates, emptyGuests } from "@/lib/searchState";
 import { cn, pluralize } from "@/lib/utils";
+import type { ListingKind } from "@/types/listing";
 import type { DateRange, GuestCounts } from "@/types/user";
 import DatePicker from "./DatePicker";
 import GuestSelector from "./GuestSelector";
 import Rating from "./Rating";
 
 interface BookingCardProps {
+  /** Identifies the listing the enquiry is recorded against. */
+  listingId: string;
+  listingKind: ListingKind;
   /** Nightly rate for stays, or the per-guest/group rate otherwise. */
   price: number;
   rating: number;
@@ -29,6 +36,8 @@ const DEFAULT_CLEANING_FEE = 150;
 const DEFAULT_SERVICE_RATE = 0.12;
 
 export default function BookingCard({
+  listingId,
+  listingKind,
   price,
   rating,
   reviewCount,
@@ -41,7 +50,8 @@ export default function BookingCard({
   const [dates, setDates] = useState<DateRange>(emptyDates);
   const [guests, setGuests] = useState<GuestCounts>(emptyGuests);
   const [openPanel, setOpenPanel] = useState<"dates" | "guests" | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [state, formAction] = useActionState(submitBookingRequest, initialBookingState);
 
   const panelRef = useDismiss<HTMLDivElement>(openPanel !== null, () => setOpenPanel(null));
 
@@ -57,8 +67,29 @@ export default function BookingCard({
 
   const canReserve = mode === "stay" ? nights > 0 : people > 0;
 
+  if (state.status === "success") {
+    return (
+      <div className="rounded-2xl border border-line bg-white p-6 shadow-pill">
+        <p className="flex items-start gap-3 rounded-xl bg-brand-50 p-4 text-sm text-brand-800">
+          <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <span role="status">{state.message}</span>
+        </p>
+        <p className="mt-4 text-sm text-muted">
+          Nothing has been charged — this build records the request only.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-2xl border border-line bg-white p-6 shadow-pill">
+    <form action={formAction} className="rounded-2xl border border-line bg-white p-6 shadow-pill">
+      <input type="hidden" name="listingId" value={listingId} />
+      <input type="hidden" name="listingKind" value={listingKind} />
+      <input type="hidden" name="checkIn" value={dates.start ?? ""} />
+      <input type="hidden" name="checkOut" value={dates.end ?? ""} />
+      <input type="hidden" name="guests" value={people} />
+      <input type="hidden" name="totalPrice" value={canReserve ? totals.total : 0} />
+
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-[22px] font-semibold text-ink">
           {formatPrice(price)}{" "}
@@ -134,30 +165,72 @@ export default function BookingCard({
         )}
       </div>
 
-      <button
-        type="button"
-        disabled={!canReserve}
-        onClick={() => {
-          setConfirmed(true);
-          window.setTimeout(() => setConfirmed(false), 2600);
-        }}
-        className={cn(
-          "mt-4 w-full rounded-xl px-6 py-3.5 text-base font-semibold transition",
-          canReserve
-            ? "bg-brand-600 text-white hover:bg-brand-700 active:scale-[0.99]"
-            : "cursor-default bg-line text-subtle",
-        )}
-      >
-        {mode === "stay" && nights === 0 ? "Check availability" : "Reserve"}
-      </button>
+      {/* Contact fields appear once the traveller commits to enquiring. */}
+      {showDetails ? (
+        <fieldset className="mt-4 space-y-3">
+          <legend className="sr-only">Your details</legend>
 
-      {confirmed && (
-        <p
-          role="status"
-          className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800"
+          <Field
+            id="fullName"
+            label="Full name"
+            autoComplete="name"
+            required
+            error={state.errors.fullName}
+          />
+          <Field
+            id="email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            required
+            error={state.errors.email}
+          />
+
+          <div>
+            <label htmlFor="message" className="mb-1.5 block text-sm font-medium text-ink">
+              Message <span className="font-normal text-muted">(optional)</span>
+            </label>
+            <textarea
+              id="message"
+              name="message"
+              rows={3}
+              maxLength={2000}
+              placeholder="Tell the host about your trip"
+              className="w-full rounded-xl border border-line-strong px-3.5 py-2.5 text-[15px] outline-none transition focus:border-ink placeholder:text-subtle"
+            />
+          </div>
+
+          {(state.errors.guests || state.errors.dates) && (
+            <p role="alert" className="text-xs text-red-600">
+              {state.errors.guests ?? state.errors.dates}
+            </p>
+          )}
+
+          <SubmitButton />
+        </fieldset>
+      ) : (
+        <button
+          type="button"
+          disabled={!canReserve}
+          onClick={() => setShowDetails(true)}
+          className={cn(
+            "mt-4 w-full rounded-xl px-6 py-3.5 text-base font-semibold transition",
+            canReserve
+              ? "bg-brand-600 text-white hover:bg-brand-700 active:scale-[0.99]"
+              : "cursor-default bg-line text-subtle",
+          )}
         >
-          <Check aria-hidden="true" className="size-4" />
-          Held for you — this demo does not take payment.
+          {mode === "stay" && nights === 0 ? "Check availability" : "Reserve"}
+        </button>
+      )}
+
+      {state.status === "error" && (
+        <p
+          role="alert"
+          className="mt-3 flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+        >
+          <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          {state.message}
         </p>
       )}
 
@@ -185,6 +258,66 @@ export default function BookingCard({
             <span>{formatPrice(totals.total)}</span>
           </div>
         </>
+      )}
+    </form>
+  );
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className={cn(
+        "w-full rounded-xl px-6 py-3.5 text-base font-semibold transition",
+        pending
+          ? "cursor-wait bg-brand-400 text-white"
+          : "bg-brand-600 text-white hover:bg-brand-700 active:scale-[0.99]",
+      )}
+    >
+      {pending ? "Sending…" : "Request to book"}
+    </button>
+  );
+}
+
+function Field({
+  id,
+  label,
+  type = "text",
+  autoComplete,
+  required,
+  error,
+}: {
+  id: string;
+  label: string;
+  type?: string;
+  autoComplete?: string;
+  required?: boolean;
+  error?: string;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-ink">
+        {label}
+      </label>
+      <input
+        id={id}
+        name={id}
+        type={type}
+        autoComplete={autoComplete}
+        required={required}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className={cn(
+          "w-full rounded-xl border px-3.5 py-2.5 text-[15px] outline-none transition focus:border-ink",
+          error ? "border-red-500" : "border-line-strong",
+        )}
+      />
+      {error && (
+        <p id={`${id}-error`} role="alert" className="mt-1 text-xs text-red-600">
+          {error}
+        </p>
       )}
     </div>
   );

@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import InspirationSection from "@/components/InspirationSection";
 import ListingRow from "@/components/ListingRow";
-import {
-  experiences,
-  experiencesInCity,
-  originalExperiences,
-  scheduledExperiences,
-} from "@/data/experiences";
 import { BRAND } from "@/data/footer";
+import {
+  getExperiencesInCity,
+  getOriginalExperiences,
+  getScheduledExperiences,
+  getWeekendExperiences,
+} from "@/lib/queries";
 
 export const metadata: Metadata = {
   title: "Experiences",
@@ -16,11 +16,13 @@ export const metadata: Metadata = {
   alternates: { canonical: "/experiences" },
 };
 
-export default function ExperiencesPage() {
-  const dubai = experiencesInCity("Dubai");
-  const weekend = experiences.filter(
-    (experience) => !experience.startTime && !experience.isOriginal && experience.city !== "Dubai",
-  );
+export default async function ExperiencesPage() {
+  const [dubai, scheduled, weekend, originals] = await Promise.all([
+    getExperiencesInCity("Dubai"),
+    getScheduledExperiences(),
+    getWeekendExperiences("Dubai"),
+    getOriginalExperiences(),
+  ]);
 
   return (
     <div className="space-y-10 py-6 sm:py-8">
@@ -30,7 +32,7 @@ export default function ExperiencesPage() {
         kind="experiences"
         title="Popular experiences in Dubai"
         href="/search?tab=experiences&where=Dubai"
-        items={dubai.filter((experience) => !experience.startTime)}
+        items={dubai}
         priority
       />
 
@@ -38,7 +40,7 @@ export default function ExperiencesPage() {
         kind="experiences"
         title="Tomorrow in Dubai"
         href="/search?tab=experiences&where=Dubai"
-        items={scheduledExperiences}
+        items={scheduled}
         showTimes
       />
 
@@ -54,7 +56,7 @@ export default function ExperiencesPage() {
         title={`${BRAND.name} Signatures`}
         href="/search?tab=experiences"
         subtitle="A small collection we produce ourselves with makers, chefs and guides."
-        items={originalExperiences}
+        items={originals}
       />
 
       <InspirationSection />
