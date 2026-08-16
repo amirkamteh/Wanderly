@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import SiteChrome from "@/components/SiteChrome";
+import { getCurrentUser } from "@/lib/auth";
 import { BRAND } from "@/data/footer";
 import { SearchStateProvider } from "@/lib/searchState";
 import "./globals.css";
@@ -53,7 +54,9 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const user = await getCurrentUser();
+
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-white text-ink">
@@ -64,7 +67,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           Skip to content
         </a>
         <SearchStateProvider>
-          <SiteChrome>
+          <SiteChrome user={user}>
             <div id="main-content">{children}</div>
           </SiteChrome>
         </SearchStateProvider>

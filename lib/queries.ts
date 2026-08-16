@@ -432,3 +432,80 @@ export async function getDestinationCities(): Promise<string[]> {
   }
   return [...cities].sort();
 }
+
+// ------------------------------------------------------- booking requests
+
+export interface TripRequest {
+  id: string;
+  listing_kind: ListingKind;
+  listing_id: string;
+  /** Human-readable listing name, resolved from the relevant table. */
+  listing_title: string;
+  guests: number;
+  check_in: string | null;
+  check_out: string | null;
+  message: string | null;
+  total_price: number | null;
+  created_at: string;
+}
+
+/**
+ * The signed-in traveller's own enquiries, with listing titles resolved.
+ *
+ * RLS restricts the rows to those whose `user_id` matches the caller, so a
+ * missing or forged session simply returns nothing.
+ */
+export async function getMyBookingRequests(): Promise<TripRequest[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("booking_requests")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) throw new Error(`getMyBookingRequests: ${error.message}`);
+  const rows = data ?? [];
+  if (rows.length === 0) return [];
+
+  // One batched lookup per vertical rather than a query per row.
+  const idsByKind = {
+    home: rows.filter((r) => r.listing_kind === "home").map((r) => r.listing_id),
+    experience: rows
+      .filter((r) => r.listing_kind === "experience")
+      .map((r) => r.listing_id),
+    service: rows.filter((r) => r.listing_kind === "service").map((r) => r.listing_id),
+  };
+
+  const [homeRows, experienceRows, serviceRows] = await Promise.all([
+    idsByKind.home.length
+      ? supabase.from("homes").select("id, name").in("id", idsByKind.home)
+      : Promise.resolve({ data: [] }),
+    idsByKind.experience.length
+      ? supabase.from("experiences").select("id, title").in("id", idsByKind.experience)
+      : Promise.resolve({ data: [] }),
+    idsByKind.service.length
+      ? supabase.from("services").select("id, title").in("id", idsByKind.service)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const titles = new Map<string, string>();
+  for (const row of homeRows.data ?? []) titles.set(`home:${row.id}`, row.name);
+  for (const row of experienceRows.data ?? []) {
+    titles.set(`experience:${row.id}`, row.title);
+  }
+  for (const row of serviceRows.data ?? []) titles.set(`service:${row.id}`, row.title);
+
+  return rows.map((row) => ({
+    id: row.id,
+    listing_kind: row.listing_kind,
+    listing_id: row.listing_id,
+    listing_title:
+      titles.get(`${row.listing_kind}:${row.listing_id}`) ?? row.listing_id,
+    guests: row.guests,
+    check_in: row.check_in,
+    check_out: row.check_out,
+    message: row.message,
+    total_price: row.total_price === null ? null : Number(row.total_price),
+    created_at: row.created_at,
+  }));
+}

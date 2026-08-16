@@ -32,6 +32,7 @@ export type Database = {
           listing_kind: Database["public"]["Enums"]["listing_kind"];
           message: string | null;
           total_price: number | null;
+          user_id: string | null;
         };
         Insert: {
           check_in?: string | null;
@@ -45,6 +46,7 @@ export type Database = {
           listing_kind: Database["public"]["Enums"]["listing_kind"];
           message?: string | null;
           total_price?: number | null;
+          user_id?: string | null;
         };
         Update: {
           check_in?: string | null;
@@ -58,6 +60,7 @@ export type Database = {
           listing_kind?: Database["public"]["Enums"]["listing_kind"];
           message?: string | null;
           total_price?: number | null;
+          user_id?: string | null;
         };
         Relationships: [];
       };
@@ -241,6 +244,24 @@ export type Database = {
           review_date: string;
         };
         Update: Partial<Database["public"]["Tables"]["reviews"]["Insert"]>;
+        Relationships: [];
+      };
+      profiles: {
+        Row: {
+          created_at: string;
+          first_name: string;
+          id: string;
+          last_name: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          first_name?: string;
+          id: string;
+          last_name?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
         Relationships: [];
       };
       services: {

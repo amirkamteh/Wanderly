@@ -61,7 +61,14 @@ export async function submitBookingRequest(
   }
 
   const supabase = await createClient();
+
+  // Attach the request to the account when there is one, so it shows up under
+  // Trips. Anonymous submissions stay supported and simply have no owner.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub ?? null;
+
   const { error } = await supabase.from("booking_requests").insert({
+    user_id: userId,
     listing_kind: listingKind,
     listing_id: listingId,
     full_name: fullName,

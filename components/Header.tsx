@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import type { CurrentUser } from "@/lib/authState";
 import LanguageSelector from "./LanguageSelector";
 import Logo from "./Logo";
 import Navigation, { activeSection } from "./Navigation";
@@ -24,7 +25,7 @@ function variantFor(pathname: string): SearchVariant {
  */
 const SEARCH_ROUTES = ["/", "/homes", "/experiences", "/services"];
 
-export default function Header() {
+export default function Header({ user }: { user: CurrentUser | null }) {
   const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
   const variant = variantFor(pathname);
@@ -48,7 +49,7 @@ export default function Header() {
             <div className="hidden md:block">
               <LanguageSelector />
             </div>
-            <UserMenu />
+            <UserMenu user={user} />
           </div>
         </div>
       </div>

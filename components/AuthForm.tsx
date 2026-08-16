@@ -1,107 +1,61 @@
 "use client";
 
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, MailCheck, TriangleAlert } from "lucide-react";
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
+import { useActionState, useState } from "react";
+import { useFormStatus } from "react-dom";
+import { signIn, signUp } from "@/app/actions/auth";
+import { initialAuthState } from "@/lib/authState";
 import { BRAND } from "@/data/footer";
 import { cn } from "@/lib/utils";
 
 type Mode = "login" | "signup";
 
-interface AuthFormProps {
-  mode: Mode;
-  /** Called after a valid submit; the page decides what happens next. */
-  onSuccess?: () => void;
-}
-
-interface FieldErrors {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  password?: string;
-}
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 /**
- * Presentational auth form with real client-side validation. Nothing is sent
- * anywhere — there is no backend behind this build.
+ * Email and password auth backed by Supabase.
+ *
+ * Validation runs again in the server action — these checks are only a
+ * convenience, never the enforcement point.
  */
-export default function AuthForm({ mode, onSuccess }: AuthFormProps) {
-  const [values, setValues] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-  });
-  const [errors, setErrors] = useState<FieldErrors>({});
+export default function AuthForm({ mode }: { mode: Mode }) {
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") ?? "/";
   const [showPassword, setShowPassword] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [state, formAction] = useActionState(
+    mode === "signup" ? signUp : signIn,
+    initialAuthState,
+  );
 
-  function validate(): FieldErrors {
-    const next: FieldErrors = {};
-    if (mode === "signup") {
-      if (!values.firstName.trim()) next.firstName = "Enter your first name";
-      if (!values.lastName.trim()) next.lastName = "Enter your last name";
-    }
-    if (!EMAIL_PATTERN.test(values.email)) next.email = "Enter a valid email address";
-    if (values.password.length < 8) next.password = "Use at least 8 characters";
-    return next;
-  }
-
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    const found = validate();
-    setErrors(found);
-    if (Object.keys(found).length === 0) {
-      setSubmitted(true);
-      onSuccess?.();
-    }
-  }
-
-  const set = (key: keyof typeof values) => (event: React.ChangeEvent<HTMLInputElement>) =>
-    setValues((current) => ({ ...current, [key]: event.target.value }));
-
-  if (submitted) {
+  if (state.status === "check-email") {
     return (
       <div className="rounded-2xl border border-line bg-surface p-6 text-center">
-        <p className="text-base font-semibold text-ink">
-          {mode === "signup" ? "Account details captured" : "Details captured"}
+        <MailCheck aria-hidden="true" className="mx-auto size-8 text-brand-600" />
+        <p className="mt-3 text-base font-semibold text-ink">Check your inbox</p>
+        <p className="mt-2 text-sm text-muted" role="status">
+          {state.message}
         </p>
-        <p className="mt-2 text-sm text-muted">
-          This build has no backend, so nothing was submitted or stored. Wire this
-          form to your auth provider to make it real.
-        </p>
-        <button
-          type="button"
-          onClick={() => setSubmitted(false)}
-          className="mt-4 text-sm font-semibold text-ink underline underline-offset-2"
-        >
-          Back to the form
-        </button>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-4">
+    <form action={formAction} noValidate className="space-y-4">
+      <input type="hidden" name="next" value={next} />
+
       {mode === "signup" && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field
             id="firstName"
             label="First name"
             autoComplete="given-name"
-            value={values.firstName}
-            onChange={set("firstName")}
-            error={errors.firstName}
+            error={state.errors.firstName}
           />
           <Field
             id="lastName"
             label="Last name"
             autoComplete="family-name"
-            value={values.lastName}
-            onChange={set("lastName")}
-            error={errors.lastName}
+            error={state.errors.lastName}
           />
         </div>
       )}
@@ -111,9 +65,7 @@ export default function AuthForm({ mode, onSuccess }: AuthFormProps) {
         label="Email"
         type="email"
         autoComplete="email"
-        value={values.email}
-        onChange={set("email")}
-        error={errors.email}
+        error={state.errors.email}
       />
 
       <Field
@@ -121,9 +73,8 @@ export default function AuthForm({ mode, onSuccess }: AuthFormProps) {
         label="Password"
         type={showPassword ? "text" : "password"}
         autoComplete={mode === "signup" ? "new-password" : "current-password"}
-        value={values.password}
-        onChange={set("password")}
-        error={errors.password}
+        error={state.errors.password}
+        hint={mode === "signup" ? "At least 8 characters" : undefined}
         trailing={
           <button
             type="button"
@@ -140,12 +91,17 @@ export default function AuthForm({ mode, onSuccess }: AuthFormProps) {
         }
       />
 
-      <button
-        type="submit"
-        className="w-full rounded-xl bg-brand-600 px-6 py-3.5 text-base font-semibold text-white transition hover:bg-brand-700 active:scale-[0.99]"
-      >
-        {mode === "signup" ? "Agree and continue" : "Log in"}
-      </button>
+      {state.status === "error" && (
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+        >
+          <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          {state.message}
+        </p>
+      )}
+
+      <SubmitButton mode={mode} />
 
       <p className="text-xs text-muted">
         By continuing you agree to {BRAND.name}&rsquo;s{" "}
@@ -191,23 +147,45 @@ export default function AuthForm({ mode, onSuccess }: AuthFormProps) {
   );
 }
 
+function SubmitButton({ mode }: { mode: Mode }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className={cn(
+        "w-full rounded-xl px-6 py-3.5 text-base font-semibold text-white transition",
+        pending
+          ? "cursor-wait bg-brand-400"
+          : "bg-brand-600 hover:bg-brand-700 active:scale-[0.99]",
+      )}
+    >
+      {pending
+        ? mode === "signup"
+          ? "Creating account…"
+          : "Logging in…"
+        : mode === "signup"
+          ? "Agree and continue"
+          : "Log in"}
+    </button>
+  );
+}
+
 function Field({
   id,
   label,
   type = "text",
-  value,
-  onChange,
-  error,
   autoComplete,
+  error,
+  hint,
   trailing,
 }: {
   id: string;
   label: string;
   type?: string;
-  value: string;
-  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  error?: string;
   autoComplete?: string;
+  error?: string;
+  hint?: string;
   trailing?: React.ReactNode;
 }) {
   return (
@@ -225,37 +203,38 @@ function Field({
           id={id}
           name={id}
           type={type}
-          value={value}
-          onChange={onChange}
           autoComplete={autoComplete}
           aria-invalid={Boolean(error)}
-          aria-describedby={error ? `${id}-error` : undefined}
+          aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
           className="w-full bg-transparent text-[15px] outline-none placeholder:text-subtle"
         />
         {trailing}
       </div>
-      {error && (
+      {error ? (
         <p id={`${id}-error`} role="alert" className="mt-1.5 text-xs text-red-600">
           {error}
         </p>
-      )}
+      ) : hint ? (
+        <p id={`${id}-hint`} className="mt-1.5 text-xs text-muted">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }
 
-/** Social sign-in buttons are UI-only in this build. */
+/** Social sign-in is not configured on this project yet. */
 function SocialButton({ provider }: { provider: "Google" | "Apple" }) {
   return (
     <button
       type="button"
-      className="flex w-full items-center justify-center gap-3 rounded-xl border border-ink px-6 py-3 text-sm font-medium text-ink transition hover:bg-surface"
+      disabled
+      title={`${provider} sign-in is not configured on this project`}
+      className="flex w-full cursor-not-allowed items-center justify-center gap-3 rounded-xl border border-line px-6 py-3 text-sm font-medium text-subtle"
     >
       <span
         aria-hidden="true"
-        className={cn(
-          "flex size-5 items-center justify-center rounded-full text-[11px] font-bold",
-          provider === "Google" ? "bg-line text-ink" : "bg-ink text-white",
-        )}
+        className="flex size-5 items-center justify-center rounded-full bg-line text-[11px] font-bold text-subtle"
       >
         {provider === "Google" ? "G" : "A"}
       </span>

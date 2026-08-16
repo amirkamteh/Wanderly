@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import { useWishlist } from "@/lib/wishlist";
+import type { CurrentUser } from "@/lib/authState";
 import { cn } from "@/lib/utils";
 
 interface Tab {
@@ -15,17 +16,22 @@ interface Tab {
   badge?: boolean;
 }
 
-const TABS: Tab[] = [
-  { href: "/", label: "Explore", icon: Search },
-  { href: "/wishlist", label: "Wishlist", icon: Heart, badge: true },
-  { href: "/trips", label: "Trips", icon: Briefcase },
-  { href: "/login", label: "Log in", icon: UserRound },
-];
+function tabsFor(user: CurrentUser | null): Tab[] {
+  return [
+    { href: "/", label: "Explore", icon: Search },
+    { href: "/wishlist", label: "Wishlist", icon: Heart, badge: true },
+    { href: "/trips", label: "Trips", icon: Briefcase },
+    user
+      ? { href: "/trips", label: user.firstName || "Account", icon: UserRound }
+      : { href: "/login", label: "Log in", icon: UserRound },
+  ];
+}
 
 /** Fixed bottom tab bar shown on small screens. */
-export default function MobileNavigation() {
+export default function MobileNavigation({ user }: { user: CurrentUser | null }) {
   const pathname = usePathname();
   const { items, ready } = useWishlist();
+  const tabs = tabsFor(user);
 
   return (
     <nav
@@ -33,14 +39,14 @@ export default function MobileNavigation() {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <ul className="flex">
-        {TABS.map((tab) => {
+        {tabs.map((tab, index) => {
           const isActive =
             tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
           const Icon = tab.icon;
           const count = ready ? items.length : 0;
 
           return (
-            <li key={tab.href} className="flex-1">
+            <li key={`${tab.href}-${index}`} className="flex-1">
               <Link
                 href={tab.href}
                 aria-current={isActive ? "page" : undefined}

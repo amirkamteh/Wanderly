@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import AuthForm from "@/components/AuthForm";
 import AuthLayout from "@/components/AuthLayout";
 
@@ -15,7 +16,9 @@ export default function SignupPage() {
       title="Create your account"
       subtitle="It takes a minute, and your wishlist comes with you."
     >
-      <AuthForm mode="signup" />
+      <Suspense fallback={<div className="h-[420px]" />}>
+        <AuthForm mode="signup" />
+      </Suspense>
     </AuthLayout>
   );
 }

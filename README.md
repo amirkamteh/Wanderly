@@ -56,18 +56,39 @@ key the browser gets.
 
 ### Access model
 
-There is **no authentication**. Every visitor is the `anon` role, and RLS is
-what keeps that safe:
+Browsing, searching and sending a booking request all work **signed out**.
+Accounts are optional and only add Trips history.
 
-| Table | `anon` may |
-| --- | --- |
-| `hosts`, `homes`, `experiences`, `services`, `reviews` | `SELECT` only |
-| `booking_requests` | `INSERT` only |
+| Table | `anon` may | `authenticated` may |
+| --- | --- | --- |
+| `hosts`, `homes`, `experiences`, `services`, `reviews` | `SELECT` | `SELECT` |
+| `booking_requests` | `INSERT` only | `INSERT`, plus `SELECT` of **own** rows |
+| `profiles` | nothing | `SELECT`/`UPDATE` of **own** row |
 
-`booking_requests` deliberately has **no** select policy. Without a login there
-is no way to prove a row belongs to you, so allowing reads would expose every
-visitor's name, email and travel dates to every other visitor. Submissions are
-write-only from the app and readable only with a privileged key.
+Anonymous submissions are write-only: without a login there is no way to prove
+a row belongs to you, so a blanket read policy would expose every visitor's
+name, email and travel dates to every other visitor. Signing in attaches
+`user_id`, and the select policy is scoped to `auth.uid()`.
+
+Seeding needs write access the app does not have, so it runs behind a
+temporary policy that is dropped again immediately afterwards.
+
+## Auth
+
+Email and password via Supabase Auth.
+
+- `proxy.ts` (Next 16 renamed `middleware`) refreshes the session cookie on
+  every request. It never redirects — the app is public by default.
+- Sessions are read with `getClaims()`, which verifies the JWT signature.
+  `getSession()` is never trusted server-side.
+- A `profiles` row is created by an `on auth.users` trigger. The function
+  lives in the unexposed `private` schema, because a `SECURITY DEFINER`
+  function in `public` is a callable REST endpoint for every role.
+- Names come from `profiles`, never from JWT user metadata, which is
+  user-editable and unsafe for anything but display.
+
+Email confirmation is enabled on the project, so signup shows a "check your
+inbox" state rather than logging straight in.
 
 Seeding needs write access the app does not have, so it runs behind a
 temporary policy that is dropped again immediately afterwards.
