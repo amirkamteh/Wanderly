@@ -1,7 +1,8 @@
 import { BedDouble, DoorOpen, Star } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import BookingCard from "@/components/BookingCard";
+import { Suspense } from "react";
+import StayBookingCard from "@/components/StayBookingCard";
 import DetailTopBar from "@/components/DetailTopBar";
 import HostCard from "@/components/HostCard";
 import ImageGallery from "@/components/ImageGallery";
@@ -173,15 +174,18 @@ export default async function HomeDetailPage(props: PageProps<"/homes/[id]">) {
           </div>
 
           <aside className="lg:sticky lg:top-28 lg:h-fit">
-            <BookingCard
-              listingId={home.id}
-              listingKind="home"
-              mode="stay"
-              price={home.price}
-              rating={home.rating}
-              reviewCount={home.reviewCount}
-              maxGuests={home.guests}
-            />
+            {/* Restores any selection carried in the URL, so it reads them. */}
+            <Suspense
+              fallback={<div className="h-[420px] animate-pulse rounded-2xl bg-surface" />}
+            >
+              <StayBookingCard
+                propertyId={home.id}
+                price={home.price}
+                rating={home.rating}
+                reviewCount={home.reviewCount}
+                maxGuests={home.guests}
+              />
+            </Suspense>
           </aside>
         </div>
       </div>

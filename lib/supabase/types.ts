@@ -19,6 +19,69 @@ export type Database = {
   };
   public: {
     Tables: {
+      bookings: {
+        Row: {
+          accommodation_total: number;
+          booking_status: Database["public"]["Enums"]["booking_status"];
+          check_in: string;
+          check_out: string;
+          cleaning_fee: number;
+          created_at: string;
+          currency: string;
+          guest_id: string;
+          guests: number;
+          host_id: string;
+          id: string;
+          message: string | null;
+          nights: number;
+          payment_status: Database["public"]["Enums"]["payment_status"];
+          price_per_night: number;
+          property_id: string;
+          service_fee: number;
+          tax: number;
+          total: number;
+          updated_at: string;
+        };
+        Insert: {
+          accommodation_total: number;
+          booking_status?: Database["public"]["Enums"]["booking_status"];
+          check_in: string;
+          check_out: string;
+          cleaning_fee?: number;
+          created_at?: string;
+          currency?: string;
+          guest_id: string;
+          guests: number;
+          host_id: string;
+          id?: string;
+          message?: string | null;
+          nights: number;
+          payment_status?: Database["public"]["Enums"]["payment_status"];
+          price_per_night: number;
+          property_id: string;
+          service_fee?: number;
+          tax?: number;
+          total: number;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["bookings"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "bookings_property_id_fkey";
+            columns: ["property_id"];
+            isOneToOne: false;
+            referencedRelation: "homes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bookings_host_id_fkey";
+            columns: ["host_id"];
+            isOneToOne: false;
+            referencedRelation: "hosts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       booking_requests: {
         Row: {
           check_in: string | null;
@@ -204,6 +267,7 @@ export type Database = {
           id: string;
           is_superhost: boolean;
           name: string;
+          owner_id: string | null;
           response_rate: number;
           years_hosting: number;
         };
@@ -214,6 +278,7 @@ export type Database = {
           id: string;
           is_superhost?: boolean;
           name: string;
+          owner_id?: string | null;
           response_rate?: number;
           years_hosting?: number;
         };
@@ -320,6 +385,18 @@ export type Database = {
     Views: { [_ in never]: never };
     Functions: { [_ in never]: never };
     Enums: {
+      booking_status:
+        | "pending"
+        | "approved"
+        | "declined"
+        | "cancelled"
+        | "completed";
+      payment_status:
+        | "pending"
+        | "authorized"
+        | "paid"
+        | "failed"
+        | "refunded";
       listing_kind: "home" | "experience" | "service";
       place_type: "entire" | "room" | "shared";
       pricing_unit: "guest" | "group";

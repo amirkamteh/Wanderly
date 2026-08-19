@@ -509,3 +509,132 @@ export async function getMyBookingRequests(): Promise<TripRequest[]> {
     created_at: row.created_at,
   }));
 }
+
+// -------------------------------------------------------------- bookings
+
+export interface GuestBooking {
+  id: string;
+  property_id: string;
+  propertyName: string;
+  location: string;
+  image: string | null;
+  check_in: string;
+  check_out: string;
+  guests: number;
+  nights: number;
+  total: number;
+  currency: string;
+  message: string | null;
+  booking_status: "pending" | "approved" | "declined" | "cancelled" | "completed";
+  created_at: string;
+}
+
+/** Joined shape shared by the guest and host booking queries. */
+const BOOKING_SELECT = "*, homes(name, city, area, images)";
+
+type BookingRow = {
+  id: string;
+  property_id: string;
+  check_in: string;
+  check_out: string;
+  guests: number;
+  nights: number;
+  total: number | string;
+  currency: string;
+  message: string | null;
+  booking_status: GuestBooking["booking_status"];
+  created_at: string;
+  homes: { name: string; city: string; area: string; images: string[] } | null;
+};
+
+function toGuestBooking(row: BookingRow): GuestBooking {
+  return {
+    id: row.id,
+    property_id: row.property_id,
+    propertyName: row.homes?.name ?? row.property_id,
+    location: row.homes ? `${row.homes.area}, ${row.homes.city}` : "",
+    image: row.homes?.images?.[0] ?? null,
+    check_in: row.check_in,
+    check_out: row.check_out,
+    guests: row.guests,
+    nights: row.nights,
+    total: Number(row.total),
+    currency: row.currency,
+    message: row.message,
+    booking_status: row.booking_status,
+    created_at: row.created_at,
+  };
+}
+
+/**
+ * The signed-in guest's bookings. RLS scopes the rows to `auth.uid()`, so a
+ * missing or forged session simply returns nothing.
+ */
+export async function getMyBookings(): Promise<GuestBooking[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(BOOKING_SELECT)
+    .order("check_in", { ascending: false })
+    .limit(100);
+
+  if (error) throw new Error(`getMyBookings: ${error.message}`);
+  return ((data ?? []) as unknown as BookingRow[]).map(toGuestBooking);
+}
+
+/** A single booking, readable only by the guest who made it. */
+export async function getBookingForGuest(id: string): Promise<GuestBooking | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(BOOKING_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw new Error(`getBookingForGuest: ${error.message}`);
+  return data ? toGuestBooking(data as unknown as BookingRow) : null;
+}
+
+export interface HostBooking extends GuestBooking {
+  guestName: string;
+  guestEmail: string;
+}
+
+/**
+ * Bookings on properties owned by the signed-in user's host profiles.
+ *
+ * RLS does the ownership check, so this returns an empty list for anyone who
+ * does not own a host profile.
+ */
+export async function getHostBookings(): Promise<HostBooking[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(`${BOOKING_SELECT}, profiles!bookings_guest_profile_fkey(first_name, last_name)`)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (error) throw new Error(`getHostBookings: ${error.message}`);
+
+  return ((data ?? []) as unknown as Array<
+    BookingRow & { profiles: { first_name: string; last_name: string } | null }
+  >).map((row) => ({
+    ...toGuestBooking(row),
+    guestName:
+      [row.profiles?.first_name, row.profiles?.last_name].filter(Boolean).join(" ") ||
+      "Wanderly guest",
+    guestEmail: "",
+  }));
+}
+
+/** True when the signed-in user owns at least one host profile. */
+export async function isHost(): Promise<boolean> {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("hosts")
+    .select("id", { count: "exact", head: true })
+    .not("owner_id", "is", null);
+
+  if (error) return false;
+  return (count ?? 0) > 0;
+}

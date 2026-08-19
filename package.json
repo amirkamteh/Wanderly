@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "tsx --env-file=.env scripts/seed.ts",
-    "db:check": "tsx --env-file=.env scripts/check-rls.ts"
+    "db:check": "tsx --env-file=.env scripts/check-rls.ts",
+    "db:check-bookings": "tsx --env-file=.env scripts/check-booking-security.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

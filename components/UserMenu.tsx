@@ -35,6 +35,7 @@ const SIGNED_IN: MenuEntry[][] = [
     { label: "Wishlist", href: "/wishlist" },
   ],
   [
+    { label: "Booking requests", href: "/host/bookings" },
     { label: "Become a host", href: "/host" },
     { label: "Help Centre", href: "/help" },
   ],
